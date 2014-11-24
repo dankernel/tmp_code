@@ -7,3 +7,6 @@ out.*
 #Data file
 wdev_0.csv
 #*.csv
+
+#tar
+*.tar.*
