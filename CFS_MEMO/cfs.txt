@@ -1,0 +1,176 @@
+/*
+ * 출처 : core.c에 주석으로 표기된 내용과 검색
+ */
+2007-05-06  Mike Galbraith에 CFS가 상호작용을 개선했다.
+Kernel 2.6.23 버전부터 CFS가 적용되었다.
+
+
+2.6.2
+update_curr();  //update time..//
+  1. get delta_exec (= delta time, now - curr->exec_start)
+  2. set exec_time (= sched_entity->exec_start)
+  3. set exec_max (= max exec time)
+  4. set sum_exec_runtime (= sum exec time += delta time(1.))
+  5. cfs->exec_clock += delta_execl (like (4.))
+  6. set vruntime (by calc_delta_fair())
+
+    calc_delta_fair();  //get vruntime..//
+    6-1. case1 : (se->load.weight != 0) ? __calc_delta()
+
+      __calc_delta(); //delta_exec * weight / lw.weight..//
+      6-1-1. get fact (= weight, = NICE_0_LOAD, =1024)
+      6-1-2. __update_inv_weight() //inv oper.., (~0U * (1/n)), ~0U is prevent point.
+        6-1-2-1. (inv_weight == 0) ? return //inv_weight = 1 / weight ..//
+        6-1-2-2. (inv_weight != 0) ? return //else..//
+        6-1-2-3. get weight (load_weight->weight)
+        6-1-2-4. case1 : (w == WMULT_CONST) ? inv = 1
+        6-1-2-5. case2 : (w == 0) ? inv = WMULT_CONST
+        6-1-2-6. case3 : else ? inv = WMULT_CONST / w
+      6-1-3. case : (1<<32 < weight) ? ....
+
+      6-1-4. fact = fact * inv_weight (= 1024 * inv)
+      6-1-5. case : (1<<32 < weight) ? fact >>=1, shift-- 
+      6-1-5. return (delta * fact) >> shift
+
+
+    6-2. case2 : (se->load.weight == 0) ? return delta
+  7. set min vruntime
+  8. case : (curr->my_q is NULL) ? //XXX I don't know my_q..//
+
+case 32 bit : 
+SCHED_LOAD_RESOLUTION = 0
+SCHED_LOAD_SHIFT = 10(D)
+SCHED_LOAD_SCALE = 10000000000(B) = 1024(D)
+NICE_0_LOAD = 1024(D)
+
+case 64 bit : 
+SCHED_LOAD_RESOLUTION = 10
+SCHED_LOAD_SHIFT = 20(D)
+SCHED_LOAD_SCALE = 1 << 20 = 1024 * 1024(D)
+NICE_0_LOAD = 1024(D) * 1024(D)
+
+
+sched_slice()
+  1. get slice
+
+    __sched_period()
+    1-1. get period (=6000000ULL)
+    1.2. get nr_latency (=8)
+    1.3. case : (nr_runnig <= 8) ? return period : goto (1.4)
+    1.4. case : (nr_runnig > 8) ? goto (1.5)
+    1.5. period = 750000ULL * nr_runnig
+    1.6. return period
+
+  2. case : (se->parent == NULL) ? return slice : goto (4.)
+  4. get load (se->sfs_rq->load)
+  5. case : (se->on_rq == NULL) ? goto(6.)
+  6. get lw (cfs_rq->load) 
+  7. update_load_add. (lw->weight) += se->load.weight
+  8. load(4.) = lw(6.)
+  9. goto (2.) loop
+
+  10. set slice. 
+  11. __calc_delta();
+
+
+
+/* ........ */
+
+__calc_delta(); //delta_exec * weight / lw.weight..//
+  1. get fact 
+    1-1. case 32bit ? fact = (weight)
+    1-2. case 64bit ? fact = (weight >> 10)
+  2. get shift (=32. defind)
+
+  3. set update inv_weight. (strut load_weight)
+
+    __update_inv_weight() //inv oper.., (~0U * (1/n)), ~0U is prevent point.
+    2-1. (inv_weight == NULL) ? return : goto (2-2.)
+    2-2. get weight (load_weight->weight)
+    2-3. case1 : (w == WMULT_CONST) ? inv = 1 (WMULT_CONST = ~0U)
+    2-4. case2 : (w == 0) ? inv = WMULT_CONST (WMULT_CONST = ~0U)
+    2-5. case3 : else ? inv = WMULT_CONST / w (WMULT_CONST = ~0U)
+
+  4. case : (fact >> 32) ? goto(5.) : goto(6.)
+  5. fact >> 1, shift--;
+  6. fact = fact * inv_weight (= 1024 * inv)
+  7. case : (1<<32 < weight) ? fact >>=1, shift-- 
+  8. return (delta * fact) >> shift
+
+case 32 bit : 
+SCHED_LOAD_RESOLUTION = 0
+SCHED_LOAD_SHIFT = 10(D)
+SCHED_LOAD_SCALE = 10000000000(B) = 1024(D)
+NICE_0_LOAD = 1024(D)
+
+case 64 bit : 
+SCHED_LOAD_RESOLUTION = 10
+SCHED_LOAD_SHIFT = 20(D)
+SCHED_LOAD_SCALE = 1 << 20 = 1024 * 1024(D)
+NICE_0_LOAD = 1024(D) * 1024(D)
+
+/* ........ */
+
+
+sched_vslice();
+  1. calc_delta_fair();
+    1-1. __calc_delta();
+
+
+      
+sched_slice()
+  가중치에 비례하게 타임슬라이스를 계산한다.
+      
+__sched_period()
+  너무 많은 task가 돌때. 슬라이스를 늘리는 작업.
+  디폴트 6000000 (6.00ms)
+  8개 이상 돌고 있으면 750000 (0.75ms) * 돌고있는 task 개수.
+
+init_task_runnable_average()
+
+
+/*
+ * nr_running이 증가하기 전에 호출됨.
+ * 통계 자료를 업데이트 한 후에 rb-tree에 넣는다.
+ */
+enqueue_task_fair()
+  ... 
+  if (!on_rq) => enqueue_entity();
+  ....
+
+/*
+ * 처음 큐에넣는 함수인 듯.
+ */
+enqueue_entity()
+  update_curr()
+  ...
+  if (se != cfs_rq->curr) => __enqueue_entity();
+  
+/*
+ * rb-tree에 넣는 과정인 듯.
+ */
+__enqueue_entity()
+  트리를 타고 자식을 찾아감.
+  leftmost 노드를 캐싱한다.
+  트리에 넣는다.
+
+/*
+ * se->on_rq이 0이면 (의외로...) 실행중인 것이다.
+ */
+  
+
+
+
+  
+  
+  
+  
+  
+  
+      
+      
+      
+
+      
+      
+      

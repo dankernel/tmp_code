@@ -1,0 +1,9 @@
+#Out file
+out
+*.out
+out.*
+*/out/
+
+#Data file
+wdev_0.csv
+#*.csv

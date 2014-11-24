@@ -1,0 +1,92 @@
+
+/* 
+ * 시간 관련.. 타이머 인터럽트 핸들러..? 
+ */
+
+tick_handle_periodic()
+
+/* 책에서 설명하는 함수 */ 
+/* 특정 주기(초당 100 ~ 1000)마다 실행되는 함수 */
+tick_periodic()
+{
+  1. write_seqlock()    /* unlock by 4. */
+
+    /* TODO : next tick..?? */
+    2. Keep track of the next tick event
+
+    3. do_timer(1);       /* 지피값 증가. */
+
+  4. write_sequnlock()  /* lock by 1. */
+
+  /* 벽에 걸려있는 실제 시간(?) */
+  /* 아래 별도의 설명을 하겠음. */
+  5. update_wall_time()
+  
+  /* 시간 관련 처리를 함. */
+  /* 어느 모드(유저/시스템)에서 틱이 발생 했는지 알아옴. */
+  /* 아래 별도의 설명을 하겠음. */
+  6. update_process_times() 
+
+  /* TODO : ... */
+  7. profile_tick()
+
+}
+
+/* 시간 관련 처리를 함. */
+/* 스케줄러랑 관련되어 가장 주요한 함수임. */ 
+update_process_times()
+{
+  1. get current and cpu(number)
+
+  /* 책 : 실제 프로세서 시간 갱신 작업을 함, 진동주기 전체동안 발생 한 것으로 인식(?) */
+  /* 1에서 구한 current와 cpu로 갱신작업을 수행 함 */
+  2. account_process_tick();
+    vtime_account_user()을 task를 인자로 바로 매핑 함.
+    2-1. 쓰레드 정보를 갖고 옴.
+    2-1. 델타 타임을 구함.
+    2-1. TODO : ...???
+    2-1. 사용자시간, 시스템시간 증가.
+    /* ..? Task의 실행 시간을 cpu시간만큼 더함. */
+
+  /* 책 : softirq 발생.(?) */
+  3. run_local_timers()
+    3-1. hrtimer_run_queues()
+    3-2. raise_softirq()
+
+  /* ...? */
+  4. rcu_check_callbacks()
+
+  5. irq_work_run()
+
+  /* 스케줄러 틱! */
+  /* 타임슬라이스 감소 시킨다고 함. */
+  6. scheduler_tick()
+    1. get CPU, rq, curr
+    2. lock
+    3. update rq clock (delta..)
+    4. curr->sched_class->task_tick()
+      4-1. (= task_tick_fair)
+      4-2. get rq, task.
+      4-2. entity_tick();
+        4-2-1. update_curr() //저번주에 했던... 업데이트 커런트 ..//
+        4-2-2. ...??
+        4-2-3. resched_task() //리스케줄링 ..//
+    5. update_cpu_load_active()
+    6. unlock (lock by 2.)
+    7. trigger_load_balance()
+    
+  /* 중요한 것 같은데, 모르겠당 */
+  7. run_posix_cpu_timers()
+
+}
+
+/* 시간을 보정하는(?) 부분이라고 함.
+ * 스케줄러 측면에서는 불필요한 분석으로 사료하기 때문에 생략함.
+ */
+update_wall_time()
+{
+
+
+
+}
+

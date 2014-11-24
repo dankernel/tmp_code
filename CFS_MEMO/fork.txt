@@ -1,0 +1,61 @@
+
+do_fork()
+  /* Task의 스케줄링 정보를 복사한다. */
+  copy_process()
+
+    //copy and init..//
+    sched_fork(flags, task_struct)
+
+      __sched_fork(flags, task_struct) 
+        task_struct->on_rq = 0;           //런큐 상태 0..
+        task_struct->se.* = 0;            //스케줄 엔티티 초기화..
+        task_struct->se.statistics = 0;   //통계정보 초기화..
+        init dl.timer 
+        task_struct->dl.* = 0;
+
+      task_struct->state = TASK_RUNNING;
+      task_struct->prio = current->nomal_prio;
+      task_struct->sched_class
+
+      set_task_cpu()
+
+        migrate_task_rq()
+
+        __set_task_cpu()
+          set_task_rq()
+          task_struct->cpu = cpu;
+          task_struct->wake_cpu = cpu;
+
+      task_struct->on_cpu = 0;
+      put_cpu()
+
+  if (!IS_ERR()) /* Run Code */
+
+  /* 새로운 Task를 Wakeup 시킨다. */
+  wake_up_new_task()
+    set_task_cpu()                    //Fork balancing..//
+    init_task_runnable_average()
+    task_struct->on_rq = 1;
+
+      
+
+
+/*
+ * MEMO 
+ *
+ * prio, normal_prio  //동적 우선순위 (스케줄러에 의해 산출됨)
+ * static_prio        //정적 우선순위 (프로세스가 시작될때 정해짐)
+ * rt_priority        //real-time process 우선순위(0~99)
+ * 
+ * -by iamroot-
+ */
+
+/*
+ * fork의 CLONE_VM flasg => 부모와 자식이 동일한 메모리 공간에서 실행됨.
+ */
+
+/*
+ * sched_statistics => Task의 통계정보가 들어있음.
+ */
+        
+      
